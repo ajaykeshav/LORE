@@ -5,6 +5,8 @@
 #include "rose.h"
 #include <iostream>
 #include <string>
+#include <random>
+#include <cmath>
 
 // Build an accumulator attribute, fancy name for what is essentially a global variable :-).
 class AccumulatorAttribute
@@ -23,6 +25,8 @@ public:
 
     /* Member function to determine the smallest array variable in the source AST */
     int determineLeastSizeAmongArrayVars(SgNode*);
+
+    static unsigned generateRandomLoopBound();
 };
 
 class visitorTraversal : public AstSimpleProcessing
@@ -39,6 +43,11 @@ public:
     virtual void visit(SgNode *n);
 };
 
+unsigned AccumulatorAttribute::generateRandomLoopBound() {
+    static std::uniform_int_distribution<unsigned> boundary_range(80,380);
+    static std::default_random_engine loopBoundGenerator;
+    return boundary_range(loopBoundGenerator);
+}
 void AccumulatorAttribute::buildListOfGlobalVariables(SgSourceFile *file)
 {
     ROSE_ASSERT(file != NULL);
@@ -64,9 +73,9 @@ void AccumulatorAttribute::buildListOfGlobalVariables(SgSourceFile *file)
                     SgType *base_type = ptr_type->get_base_type();
                     SgArrayType *array_type = new SgArrayType(base_type);
 
-                    /* fix the max size of any array to a constant */
-                    SgExpression *array_size = SageBuilder::buildIntVal(500);
-                    array_type->set_number_of_elements(500);
+                    /* array sie is arbitrary */
+                    SgExpression *array_size = SageBuilder::buildIntVal(generateRandomLoopBound());
+                    array_type->set_number_of_elements(generateRandomLoopBound());
                     array_type->set_index(array_size);
                     array_type->set_is_variable_length_array(false);
 
@@ -77,8 +86,8 @@ void AccumulatorAttribute::buildListOfGlobalVariables(SgSourceFile *file)
                         SgArrayType *array_type_double_pointer = new SgArrayType(array_type);
 
                         /* fix the max size of any array to a constant */
-                        SgExpression *array_size_double_pointer = SageBuilder::buildIntVal(500);
-                        array_type_double_pointer->set_number_of_elements(500);
+                        SgExpression *array_size_double_pointer = SageBuilder::buildIntVal(generateRandomLoopBound());
+                        array_type_double_pointer->set_number_of_elements(generateRandomLoopBound());
                         array_type_double_pointer->set_index(array_size_double_pointer);
                         array_type_double_pointer->set_is_variable_length_array(false);
                         type = array_type_double_pointer;
@@ -100,7 +109,7 @@ void AccumulatorAttribute::buildListOfGlobalVariables(SgSourceFile *file)
 
 int AccumulatorAttribute::determineLeastSizeAmongArrayVars(SgNode* n)
 {
-    int least_size = INT32_MAX;
+    int least_size = 380;
 
     /* Gather all pointer or array reference expressions in scope */
     Rose_STL_Container<SgNode*> arrayAccess = NodeQuery::querySubTree(n,V_SgPntrArrRefExp);
