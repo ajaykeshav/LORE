@@ -61,33 +61,38 @@ void AccumulatorAttribute::flattenPointerTypesToArrays(SgVariableDeclaration *va
         SgPointerType *ptr_type = isSgPointerType(type);
         if(ptr_type) {
             SgType *base_type = ptr_type->get_base_type();
-            SgArrayType *array_type = new SgArrayType(base_type);
-
-            /* array size is arbitrary */
-            unsigned randSize = (rand() % 301) + 80;
-            SgExpression *array_size = SageBuilder::buildIntVal(randSize);
-            array_type->set_number_of_elements(randSize);
-            array_type->set_index(array_size);
-            array_type->set_is_variable_length_array(false);
-
-            /* handle double pointers */
-            SgPointerType *double_ptr_type = isSgPointerType(base_type);
-            if(double_ptr_type){
-                array_type->set_base_type(double_ptr_type->get_base_type());
-                SgArrayType *array_type_double_pointer = new SgArrayType(array_type);
-
-                /* fix the max size of any array to a constant */
-                unsigned arraySize_dp = (rand() % 301) + 80;
-                SgExpression *array_size_double_pointer = SageBuilder::buildIntVal(arraySize_dp);
-                array_type_double_pointer->set_number_of_elements(arraySize_dp);
-                array_type_double_pointer->set_index(array_size_double_pointer);
-                array_type_double_pointer->set_is_variable_length_array(false);
-                type = array_type_double_pointer;
+            SgNamedType *classTy = isSgNamedType(base_type);
+            if(classTy){
+                (*var)->set_type(type);
             }
             else {
-                type = array_type;
+                SgArrayType *array_type = new SgArrayType(base_type);
+
+                /* array size is arbitrary */
+                unsigned randSize = (rand() % 301) + 80;
+                SgExpression *array_size = SageBuilder::buildIntVal(randSize);
+                array_type->set_number_of_elements(randSize);
+                array_type->set_index(array_size);
+                array_type->set_is_variable_length_array(false);
+
+                /* handle double pointers */
+                SgPointerType *double_ptr_type = isSgPointerType(base_type);
+                if (double_ptr_type) {
+                    array_type->set_base_type(double_ptr_type->get_base_type());
+                    SgArrayType *array_type_double_pointer = new SgArrayType(array_type);
+
+                    /* fix the max size of any array to a constant */
+                    unsigned arraySize_dp = (rand() % 301) + 80;
+                    SgExpression *array_size_double_pointer = SageBuilder::buildIntVal(arraySize_dp);
+                    array_type_double_pointer->set_number_of_elements(arraySize_dp);
+                    array_type_double_pointer->set_index(array_size_double_pointer);
+                    array_type_double_pointer->set_is_variable_length_array(false);
+                    type = array_type_double_pointer;
+                } else {
+                    type = array_type;
+                }
+                (*var)->set_type(type);
             }
-            (*var)->set_type(type);
         }
         if(isSimpleVar) {
             visitorTraversal::accumulatorAttribute.globalVariables.push_back(*var);
