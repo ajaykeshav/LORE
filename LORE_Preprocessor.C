@@ -6,7 +6,10 @@
 #include <iostream>
 #include <string>
 #include <random>
-#include <cmath>
+#include <ctime>
+
+#define IS_SIMPLE_VAR true
+#define IS_NOT_SIMPLE_VAR false
 
 // Build an accumulator attribute, fancy name for what is essentially a global variable :-).
 class AccumulatorAttribute
@@ -23,10 +26,11 @@ public:
     /* Member function to gather all globals and convert pointer types to arrays */
     void buildListOfGlobalVariables(SgSourceFile *);
 
+    /* Member function to flatten pointer types to array types from a list of variable declarations */
+    void flattenPointerTypesToArrays(SgVariableDeclaration*, bool);
+
     /* Member function to determine the smallest array variable in the source AST */
     int determineLeastSizeAmongArrayVars(SgNode*);
-
-    static unsigned generateRandomLoopBound();
 };
 
 class visitorTraversal : public AstSimpleProcessing
@@ -43,11 +47,55 @@ public:
     virtual void visit(SgNode *n);
 };
 
-unsigned AccumulatorAttribute::generateRandomLoopBound() {
-    static std::uniform_int_distribution<unsigned> boundary_range(80,380);
-    static std::default_random_engine loopBoundGenerator;
-    return boundary_range(loopBoundGenerator);
+void AccumulatorAttribute::flattenPointerTypesToArrays(SgVariableDeclaration *variableDeclaration, bool isSimpleVar)
+{
+    Rose_STL_Container<SgInitializedName*> &variableList = variableDeclaration->get_variables();
+    Rose_STL_Container<SgInitializedName*>::iterator var = variableList.begin();
+    while(var != variableList.end()){
+        SgType *complete_type = (*var)->get_type();
+        ROSE_ASSERT(complete_type != NULL);
+
+        /* remove restrict storage class modifier if any (not supported by EDG parser) */
+        SgType *type = complete_type->stripTypedefsAndModifiers();
+
+        SgPointerType *ptr_type = isSgPointerType(type);
+        if(ptr_type) {
+            SgType *base_type = ptr_type->get_base_type();
+            SgArrayType *array_type = new SgArrayType(base_type);
+
+            /* array size is arbitrary */
+            unsigned randSize = (rand() % 301) + 80;
+            SgExpression *array_size = SageBuilder::buildIntVal(randSize);
+            array_type->set_number_of_elements(randSize);
+            array_type->set_index(array_size);
+            array_type->set_is_variable_length_array(false);
+
+            /* handle double pointers */
+            SgPointerType *double_ptr_type = isSgPointerType(base_type);
+            if(double_ptr_type){
+                array_type->set_base_type(double_ptr_type->get_base_type());
+                SgArrayType *array_type_double_pointer = new SgArrayType(array_type);
+
+                /* fix the max size of any array to a constant */
+                unsigned arraySize_dp = (rand() % 301) + 80;
+                SgExpression *array_size_double_pointer = SageBuilder::buildIntVal(arraySize_dp);
+                array_type_double_pointer->set_number_of_elements(arraySize_dp);
+                array_type_double_pointer->set_index(array_size_double_pointer);
+                array_type_double_pointer->set_is_variable_length_array(false);
+                type = array_type_double_pointer;
+            }
+            else {
+                type = array_type;
+            }
+            (*var)->set_type(type);
+        }
+        if(isSimpleVar) {
+            visitorTraversal::accumulatorAttribute.globalVariables.push_back(*var);
+        }
+        var++;
+    }
 }
+
 void AccumulatorAttribute::buildListOfGlobalVariables(SgSourceFile *file)
 {
     ROSE_ASSERT(file != NULL);
@@ -58,50 +106,33 @@ void AccumulatorAttribute::buildListOfGlobalVariables(SgSourceFile *file)
     while(i != declStmt.end()) {
         SgVariableDeclaration *variableDeclaration = isSgVariableDeclaration(*i);
         if(variableDeclaration != NULL){
-            Rose_STL_Container<SgInitializedName*> &variableList = variableDeclaration->get_variables();
-            Rose_STL_Container<SgInitializedName*>::iterator var = variableList.begin();
-            while(var != variableList.end()){
-                visitorTraversal::accumulatorAttribute.globalVariables.push_back(*var);
-                SgType *complete_type = (*var)->get_type();
-                ROSE_ASSERT(complete_type != NULL);
-
-                /* remove restrict type modifiers if any (not supported by EDG parser) */
-                SgType *type = complete_type->stripTypedefsAndModifiers();
-
-                SgPointerType *ptr_type = isSgPointerType(type);
-                if(ptr_type) {
-                    SgType *base_type = ptr_type->get_base_type();
-                    SgArrayType *array_type = new SgArrayType(base_type);
-
-                    /* array sie is arbitrary */
-                    SgExpression *array_size = SageBuilder::buildIntVal(generateRandomLoopBound());
-                    array_type->set_number_of_elements(generateRandomLoopBound());
-                    array_type->set_index(array_size);
-                    array_type->set_is_variable_length_array(false);
-
-                    /* handle double pointers */
-                    SgPointerType *double_ptr_type = isSgPointerType(base_type);
-                    if(double_ptr_type){
-                        array_type->set_base_type(double_ptr_type->get_base_type());
-                        SgArrayType *array_type_double_pointer = new SgArrayType(array_type);
-
-                        /* fix the max size of any array to a constant */
-                        SgExpression *array_size_double_pointer = SageBuilder::buildIntVal(generateRandomLoopBound());
-                        array_type_double_pointer->set_number_of_elements(generateRandomLoopBound());
-                        array_type_double_pointer->set_index(array_size_double_pointer);
-                        array_type_double_pointer->set_is_variable_length_array(false);
-                        type = array_type_double_pointer;
-                    }
-                    else {
-                        type = array_type;
-                    }
-                    (*var)->set_type(type);
-                }
-                var++;
-            }
+            flattenPointerTypesToArrays(variableDeclaration, IS_SIMPLE_VAR);
 
             /* This declaration is no longer needed, will be later moved to local scope */
             SageInterface::removeStatement(*i);
+        }
+        else {
+            SgTypedefDeclaration *typedefDeclaration = isSgTypedefDeclaration(*i);
+
+            /* Handle typedefs defining structs containing pointer members */
+            if(typedefDeclaration != NULL) {
+                SgDeclarationStatement *definingDecl = typedefDeclaration->get_baseTypeDefiningDeclaration();
+                if(definingDecl != NULL) {
+                    SgDeclarationStatement *structDefn = definingDecl->get_definingDeclaration();
+                    SgClassDeclaration *classDecl = isSgClassDeclaration(structDefn);
+                    if (classDecl != NULL) {
+                        SgClassDefinition *classDefn = classDecl->get_definition();
+                        ROSE_ASSERT(classDefn != NULL);
+                        SgDeclarationStatementPtrList &memberList = classDefn->get_members();
+                        for(SgDeclarationStatementPtrList::iterator mem = memberList.begin(); mem != memberList.end(); ++mem) {
+                            SgVariableDeclaration *memberVarDecl = isSgVariableDeclaration(*mem);
+                            if(memberVarDecl != NULL) {
+                                flattenPointerTypesToArrays(memberVarDecl,IS_NOT_SIMPLE_VAR);
+                            }
+                        }
+                    }
+                }
+            }
         }
         i++;
     }
@@ -178,7 +209,7 @@ void nestedVisitorTraversal::visit(SgNode* n)
 {
     if (isSgForStatement(n) != NULL)
     {
-        /* Extract for loops and constantize the upper bounds if it is not already a constant */
+        /* Extract for loops and fold the upper bounds to constants if it is not already a constant */
         /* TODO: Handle variable lower bounds */
         SgForStatement *forStmt = isSgForStatement(n);
         SgExpression *loopCondExpr = forStmt->get_test_expr();
@@ -188,8 +219,9 @@ void nestedVisitorTraversal::visit(SgNode* n)
         SgExpression *boundVal = op->get_rhs_operand();
         SgIntVal *varType = isSgIntVal(boundVal);
         if(varType == nullptr){
-            /* set the upper bound to the least possible value */
-            int upperBound = nestedVisitorTraversal::nestedAccumulatorAttribute.determineLeastSizeAmongArrayVars(n);
+            /* set the upper bound to a value less than or equal to the least value based on array sizes */
+            int maxBound = nestedVisitorTraversal::nestedAccumulatorAttribute.determineLeastSizeAmongArrayVars(n);
+            int upperBound = rand() % maxBound + 1;
             SgExpression *upperBoundExp = SageBuilder::buildIntVal(upperBound);
             op->set_rhs_operand(upperBoundExp);
         }
@@ -217,7 +249,7 @@ main ( int argc, char* argv[] )
     visitorTraversal::accumulatorAttribute.buildListOfGlobalVariables(f);
     SgGlobal *globalScope = f->get_globalScope();
     ROSE_ASSERT(globalScope != NULL);
-
+    srand(time(0));
     // Call the traversal starting at the project node of the AST
     // can be specified to be preorder or postorder).
     exampleTraversal.traverseInputFiles(project,preorder);
