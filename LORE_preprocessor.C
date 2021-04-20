@@ -51,6 +51,7 @@ void AccumulatorAttribute::flattenPointerTypesToArrays(SgVariableDeclaration *va
 {
     Rose_STL_Container<SgInitializedName*> &variableList = variableDeclaration->get_variables();
     Rose_STL_Container<SgInitializedName*>::iterator var = variableList.begin();
+    bool insertIntoGlobalVarList = true;
     while(var != variableList.end()){
         SgType *complete_type = (*var)->get_type();
         ROSE_ASSERT(complete_type != NULL);
@@ -63,6 +64,11 @@ void AccumulatorAttribute::flattenPointerTypesToArrays(SgVariableDeclaration *va
             SgType *base_type = ptr_type->get_base_type();
             SgNamedType *classTy = isSgNamedType(base_type);
             if(classTy){
+                SgName streamTypeName = classTy->get_name();
+                std::string typeName = streamTypeName.getString();
+                if(typeName == "FILE"){
+                    insertIntoGlobalVarList = false;
+                }
                 (*var)->set_type(type);
             }
             else {
@@ -94,7 +100,7 @@ void AccumulatorAttribute::flattenPointerTypesToArrays(SgVariableDeclaration *va
                 (*var)->set_type(type);
             }
         }
-        if(isSimpleVar) {
+        if(isSimpleVar && insertIntoGlobalVarList) {
             visitorTraversal::accumulatorAttribute.globalVariables.push_back(*var);
         }
         var++;
@@ -231,6 +237,21 @@ void nestedVisitorTraversal::visit(SgNode* n)
             op->set_rhs_operand(upperBoundExp);
         }
         visitorTraversal::accumulatorAttribute.forLoopCounter++;
+    }
+
+    /* Remove include directives to prevent errors from EDG parser */
+    SgLocatedNode *locatedNode = isSgLocatedNode(n);
+    if(locatedNode) {
+        AttachedPreprocessingInfoType *headers = locatedNode->get_attachedPreprocessingInfoPtr();
+        if(headers != NULL) {
+            AttachedPreprocessingInfoType::iterator i;
+            for(i = headers->begin(); i != headers->end(); ++i) {
+                std::string typeName = PreprocessingInfo::directiveTypeName((*i)->getTypeOfDirective());
+                if(typeName == "CpreprocessorIncludeDeclaration"){
+                    locatedNode->set_attachedPreprocessingInfoPtr(nullptr);
+                }
+            }
+        }
     }
 }
 
