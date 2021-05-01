@@ -3,10 +3,10 @@ int main()
 {
   double sb_sample[2][3][12][32];
   double joint_sample[3][12][32];
-  int gr = 9;
-  int sample = 19;
-  int sblimit = 7;
-  int sb = 18;
+  int gr = 10;
+  int sample = 14;
+  int sblimit = 5;
+  int sb = 19;
   int __sb_0__ = sb;
   int __sample_1__ = sample;
   int __gr_2__ = gr;

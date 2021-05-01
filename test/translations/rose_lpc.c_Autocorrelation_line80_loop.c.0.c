@@ -3,8 +3,8 @@ typedef long longword;
 
 int main()
 {
-  word *s = 11;
-  int k = 13;
+  word s[321];
+  int k = 19;
   int __k_0__ = k;
   
 #pragma scop

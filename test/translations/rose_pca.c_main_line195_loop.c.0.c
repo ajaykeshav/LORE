@@ -1,15 +1,15 @@
 
 int main()
 {
-  float symmat[228][127];
-  int k2 = 17;
-  int k = 15;
-  float data[138][343];
-  float interm[347];
-  int m = 6;
-  int j = 19;
-  int n = 5;
-  int i = 11;
+  float symmat[355][104];
+  int k2 = 18;
+  int k = 16;
+  float data[347][341];
+  float interm[321];
+  int m = 10;
+  int j = 15;
+  int n = 16;
+  int i = 14;
   int __i_0__ = i;
   int __j_1__ = j;
   int __k_2__ = k;
@@ -17,13 +17,13 @@ int main()
   
 #pragma scop
 {
-    for (__i_0__ = 1; __i_0__ <= 53; __i_0__ += 1) {
-      for (__j_1__ = 1; __j_1__ <= 24; __j_1__ += 1) {
+    for (__i_0__ = 1; __i_0__ <= 55; __i_0__ += 1) {
+      for (__j_1__ = 1; __j_1__ <= 234; __j_1__ += 1) {
         interm[__j_1__] = data[__i_0__][__j_1__];
       }
       for (__k_2__ = 1; __k_2__ <= 3; __k_2__ += 1) {
         data[__i_0__][__k_2__] = 0.0;
-        for (__k2_3__ = 1; __k2_3__ <= 54; __k2_3__ += 1) {
+        for (__k2_3__ = 1; __k2_3__ <= 29; __k2_3__ += 1) {
           data[__i_0__][__k_2__] += interm[__k2_3__] * symmat[__k2_3__][m - __k_2__ + 1];
         }
       }

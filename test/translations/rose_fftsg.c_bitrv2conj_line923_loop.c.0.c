@@ -1,24 +1,24 @@
 
 int main()
 {
-  int m2 = 15;
-  double yi = 12;
-  double yr = 6;
-  double xi = 9;
-  double a[343];
-  double xr = 11;
-  int k1 = 7;
-  int ip[347];
-  int j1 = 18;
-  int j = 16;
-  int m = 13;
-  int k = 12;
+  int m2 = 5;
+  double yi = 14;
+  double yr = 4;
+  double xi = 11;
+  double a[341];
+  double xr = 6;
+  int k1 = 16;
+  int ip[321];
+  int j1 = 6;
+  int j = 8;
+  int m = 9;
+  int k = 7;
   int __k_0__ = k;
   int __j_1__ = j;
   
 #pragma scop
-  for (__k_0__ = 0; __k_0__ <= 186; __k_0__ += 1) {
-    for (__j_1__ = 0; __j_1__ <= 37; __j_1__ += 1) {
+  for (__k_0__ = 0; __k_0__ <= 161; __k_0__ += 1) {
+    for (__j_1__ = 0; __j_1__ <= 50; __j_1__ += 1) {
       j1 = 2 * __j_1__ + ip[__k_0__];
       k1 = 2 * __k_0__ + ip[__j_1__];
       xr = a[j1];

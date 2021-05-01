@@ -3,8 +3,8 @@ int main()
 {
   int a[10][10];
   int b[10][10];
-  int i = 13;
-  int j = 11;
+  int i = 6;
+  int j = 10;
   int __j_0__ = j;
   int __i_1__ = i;
   

@@ -11,7 +11,7 @@ extern int img_x_range;
 extern int img_width;
 extern int patch_depth;
 
-struct autocode 
+typedef struct autocode 
 {
   unsigned int random_seed;
   int NoOfInputs;
@@ -31,9 +31,8 @@ struct autocode
   float learningRate;
   float noise;
   unsigned int itterations;
-}
-;
-typedef struct autocode ac;
+}ac;
+
 extern ac * __restrict__ autocoder;
 extern int start_index;
 extern unsigned char * __restrict__ img;

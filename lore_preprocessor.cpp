@@ -57,50 +57,50 @@ void AccumulatorAttribute::flattenPointerTypesToArrays(SgVariableDeclaration *va
         SgType *complete_type = (*var)->get_type();
         ROSE_ASSERT(complete_type != NULL);
 
+        /* Filter ROSE inserted variables */
+        SgName varName = (*var)->get_name();
+        std::string varNameAsString = varName.getString();
+        if(varNameAsString == "sys_errlist" ||
+           varNameAsString == "stdin" ||
+           varNameAsString == "stdout" ||
+           varNameAsString == "stderr" ||
+           varNameAsString == "sys_nerr"){
+                insertIntoGlobalVarList = false;
+        }
+
         /* remove restrict qualifier if any (not supported by EDG parser) */
         SgType *type = complete_type->stripTypedefsAndModifiers();
 
         SgPointerType *ptr_type = isSgPointerType(type);
         if(ptr_type) {
             SgType *base_type = ptr_type->get_base_type();
-            SgNamedType *classTy = isSgNamedType(base_type);
-            if(classTy){
-                /* Remove file streams declarations added from #include file contents */
-                SgName streamTypeName = classTy->get_name();
-                std::string typeName = streamTypeName.getString();
-                if(typeName == "FILE"){
-                    insertIntoGlobalVarList = false;
-                }
-                (*var)->set_type(type);
+            SgArrayType *array_type = new SgArrayType(base_type);
+
+            /* array size is arbitrary */
+            unsigned randSize = (rand() % 301) + 80;
+            SgExpression *array_size = SageBuilder::buildIntVal(randSize);
+            array_type->set_number_of_elements(randSize);
+            array_type->set_index(array_size);
+            array_type->set_is_variable_length_array(false);
+
+            /* handle double pointers */
+            SgPointerType *double_ptr_type = isSgPointerType(base_type);
+            if (double_ptr_type) {
+                array_type->set_base_type(double_ptr_type->get_base_type());
+                SgArrayType *array_type_double_pointer = new SgArrayType(array_type);
+
+                /* fix the max size of any array to a constant */
+                unsigned arraySize_dp = (rand() % 301) + 80;
+                SgExpression *array_size_double_pointer = SageBuilder::buildIntVal(arraySize_dp);
+                array_type_double_pointer->set_number_of_elements(arraySize_dp);
+                array_type_double_pointer->set_index(array_size_double_pointer);
+                array_type_double_pointer->set_is_variable_length_array(false);
+                type = array_type_double_pointer;
+            } else {
+                type = array_type;
             }
-            else {
-                SgArrayType *array_type = new SgArrayType(base_type);
+            (*var)->set_type(type);
 
-                /* array size is arbitrary */
-                unsigned randSize = (rand() % 301) + 80;
-                SgExpression *array_size = SageBuilder::buildIntVal(randSize);
-                array_type->set_number_of_elements(randSize);
-                array_type->set_index(array_size);
-                array_type->set_is_variable_length_array(false);
-
-                /* handle double pointers */
-                SgPointerType *double_ptr_type = isSgPointerType(base_type);
-                if (double_ptr_type) {
-                    array_type->set_base_type(double_ptr_type->get_base_type());
-                    SgArrayType *array_type_double_pointer = new SgArrayType(array_type);
-
-                    /* fix the max size of any array to a constant */
-                    unsigned arraySize_dp = (rand() % 301) + 80;
-                    SgExpression *array_size_double_pointer = SageBuilder::buildIntVal(arraySize_dp);
-                    array_type_double_pointer->set_number_of_elements(arraySize_dp);
-                    array_type_double_pointer->set_index(array_size_double_pointer);
-                    array_type_double_pointer->set_is_variable_length_array(false);
-                    type = array_type_double_pointer;
-                } else {
-                    type = array_type;
-                }
-                (*var)->set_type(type);
-            }
         }
         if(isGenericVar && insertIntoGlobalVarList) {
             visitorTraversal::accumulatorAttribute.globalVariables.push_back(*var);
